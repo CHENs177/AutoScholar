@@ -1,0 +1,42 @@
+Recent Progress in Software-Hardware Co-design for Spiking Neural Networks: From Neural Algorithms to Neuromorphic Architectures
+1. Introduction
+2. Foundations of SNN Algorithms 
+		2.1 Mathematical Models of Neurons
+			2.1.1 The Leaky Integrate and Fire Model
+			2.1.2 Alternative Biological Neuron Models
+2.2 Information Encoding Strategies
+2.2.1 Rate-Based Encoding
+2.2.2 Timing-Based Encoding
+2.2.3 Learning-Based Encoding
+2.3 Network Learning Principles
+2.3.1 Localized Plasticity Rules
+2.3.2 Global Optimization Methods
+2.4 Common Architectures for SNNs
+2.4.1 Spatial Convolutional Architectures
+2.4.2 Temporal Recurrent Architectures
+2.4.3 Spiking Transformer Architectures
+3. Hardware Implementation of Synapses and Neurons
+3.1 Device Architectures and Arrays
+3.1.1 Computing Cell Configurations
+3.1.2 Peripheral Control Strategies
+3.2 Hardware Mapping of Synaptic Functions
+3.2.1 Synaptic Weight Representation
+3.2.2 Synaptic Plasticity Realization
+3.3 Hardware Simulation of Neuronal Behavior
+3.3.1 Neuronal Integration Dynamics
+3.3.2 Neuronal Firing Mechanisms
+4. Algorithm-Hardware Co-design Strategies 
+4.1 Learning Rules and Training Schemes
+4.1.1 Localized Learning Rules
+4.1.2 Global Training Frameworks
+4.2 Architectural Co-design Strategies
+4.2.1 Convolutional Network Co-design
+4.2.2 Recurrent Network Co-design
+4.2.3 Attention Network Co-design
+4.3 System Optimization Techniques
+4.3.1 Device Variation Compensation
+4.3.2 Conductance State Quantization
+4.3.3 Peripheral Power Reduction
+5. Summary 
+5.1 Conclusions	
+5.2 Prospects and challenges

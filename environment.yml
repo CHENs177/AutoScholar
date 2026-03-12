@@ -1,0 +1,15 @@
+name: scholar_snn
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - openpyxl
+  - pip
+  - pip:
+    - pymupdf
+    - python-docx
+    - requests
+    - watchdog
+    - openai

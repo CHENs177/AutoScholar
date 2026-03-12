@@ -1,0 +1,15 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 文献数据（重点：不传 PDF）
+input/
+output/
+temp/
+
+# 系统文件
+.DS_Store
