@@ -1,95 +1,87 @@
-import os
+import json
 import shutil
-import pandas as pd
 from core.config import INPUT_DIR, OUTPUT_DIR, OUTLINE_PATH
 from core.folder_manager import create_structure_from_outline
-from core.pdf_processor import get_all_pdfs, extract_smart_text, get_next_index
-from core.classifier import analyze_paper_with_ai
-from core.researcher import extract_and_analyze_images, generate_dual_reports
+from core.pdf_processor import get_all_pdfs, extract_full_text, get_next_index
+from core.classifier import get_semantic_chunks, analyze_chunk, reduce_synthesis
+from core.researcher import generate_dual_reports, extract_and_analyze_images
 
 
-def smart_run():
-    # 1. 环境准备
+def find_best_folder(target_root, section_code):
+    """递归模糊匹配：确保文献归位"""
+    if not section_code: return None
+    clean_code = "".join(c for c in str(section_code) if c.isdigit() or c == '.').strip('.')
+    current_code = clean_code
+    while current_code:
+        matches = list(target_root.rglob(f"{current_code}*"))
+        valid_matches = [m for m in matches if '0_Pending' not in str(m) and m.is_dir()]
+        if valid_matches:
+            return sorted(valid_matches, key=lambda x: len(str(x)), reverse=True)[0]
+        if '.' in current_code:
+            current_code = ".".join(current_code.split('.')[:-1])
+        else:
+            break
+    return None
+
+
+def main_workflow():
+    print("🚀 正在初始化科研工作流...")
     if not OUTLINE_PATH.exists(): return
     with open(OUTLINE_PATH, 'r', encoding='utf-8') as f:
         outline_text = f.read()
+
     create_structure_from_outline(outline_text)
-
     pdfs = get_all_pdfs(INPUT_DIR)
-    if not pdfs:
-        print("💡 Input 文件夹已空，无新文献需要处理。")
-        return
-
-    processed_log = []
 
     for pdf_path in pdfs:
-        print(f"\n🚀 处理中: {pdf_path.name}")
+        try:
+            print(f"\n深度处理开始: {pdf_path.name}")
+            full_text = extract_full_text(pdf_path)
+            if not full_text: continue
 
-        # 2. 深度阅读与 AI 判定
-        text = extract_smart_text(pdf_path)
-        analysis = analyze_paper_with_ai(text, outline_text)
+            # 分块
+            chunks = get_semantic_chunks(full_text)
+            print(f"📄 已切分为 {len(chunks)} 个语义块，开始逐块精读...")
 
-        relevance = analysis.get('relevance', '相关')
-        title = analysis.get('title', 'Unknown').replace("/", "_").replace(":", "")
+            # Map 阶段
+            chunk_summaries = [analyze_chunk(c, i, len(chunks)) for i, c in enumerate(chunks)]
 
-        if "无关" in relevance:
-            dest = OUTPUT_DIR / "3_Irrelevant_Papers"
-            dest.mkdir(exist_ok=True)
-            shutil.move(pdf_path, dest / f"{title}.pdf")
-            print("🚮 已剔除至无关区。")
-            continue
+            # Reduce 阶段
+            print("🧠 正在进行逻辑重组与学术级翻译...")
+            data = reduce_synthesis(chunk_summaries, outline_text)
 
-        # 3. 路径路由与【自动编号】
-        root_name = "1_Review_Papers" if "综述" in analysis.get('type', '研究') else "2_Research_Papers"
-        target_root = OUTPUT_DIR / root_name
+            # 路由分类
+            is_review = "综述" in data.get('type', '研究')
+            root_name = "1_Review_Papers" if is_review else "2_Research_Papers"
+            target_root = OUTPUT_DIR / root_name
 
-        # 寻找章节文件夹（含模糊匹配）
-        found_folder = None
-        temp_sec = analysis.get('section', '').strip(".")
-        while temp_sec and not found_folder:
-            matches = list(target_root.rglob(f"{temp_sec}_*"))
-            if not matches: matches = list(target_root.rglob(f"{temp_sec}*"))
-            if matches:
-                found_folder = matches[0]
-            else:
-                temp_sec = ".".join(temp_sec.split(".")[:-1]) if "." in temp_sec else None
+            found_folder = find_best_folder(target_root, data.get('classification', {}).get('section', ''))
+            dest_root = found_folder if found_folder else (target_root / "0_Pending")
+            dest_root.mkdir(exist_ok=True)
 
-        # 确定最终目录名并【加上编号前缀】
-        if found_folder:
-            prefix = get_next_index(found_folder)
-            final_dir = found_folder / f"{prefix}_{title}"
-        else:
-            final_dir = target_root / "0_Pending" / title
+            # 编号与文件夹创建
+            idx = get_next_index(dest_root)
+            safe_title = "".join(
+                [c for c in data['bibliographic_info']['title'] if c.isalnum() or c in (' ', '_', '-')]).strip()
+            final_dir = dest_root / f"{idx}_{safe_title[:80]}"
+            final_dir.mkdir(parents=True, exist_ok=True)
 
-        final_dir.mkdir(parents=True, exist_ok=True)
+            # 保存 JSON
+            with open(final_dir / "analysis_data.json", "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
 
-        # 4. 生成双文档与图片提取
-        print("🎨 提取图片并分析...")
-        img_results = extract_and_analyze_images(pdf_path, final_dir)
-        print("📝 生成双份 Word 报告...")
-        generate_dual_reports(analysis, img_results, final_dir)
+            # 生成报告
+            print(f"📝 正在生成 Word 报告与图表解析...")
+            img_results = extract_and_analyze_images(pdf_path, final_dir)
+            generate_dual_reports(data, img_results, final_dir)
 
-        # 5. 移动文件（增量归档）
-        shutil.move(pdf_path, final_dir / f"{title}.pdf")
+            # 归档
+            shutil.move(pdf_path, final_dir / f"{pdf_path.name}")
+            print(f"✅ 处理完成: {final_dir.name}")
 
-        processed_log.append({
-            "编号": prefix if found_folder else "N/A",
-            "标题": title,
-            "类型": analysis.get('type'),
-            "章节": analysis.get('section')
-        })
-        print(f"✅ 完成归类: {final_dir.name}")
-
-    # 6. 更新 Excel 矩阵
-    if processed_log:
-        excel_path = OUTPUT_DIR / "Literature_Matrix.xlsx"
-        new_df = pd.DataFrame(processed_log)
-        if excel_path.exists():
-            old_df = pd.read_excel(excel_path)
-            new_df = pd.concat([old_df, new_df], ignore_index=True)
-        new_df.to_excel(excel_path, index=False)
-        print(f"📊 文献矩阵已更新: {excel_path}")
+        except Exception as e:
+            print(f"❌ 意外错误: {e}")
 
 
 if __name__ == "__main__":
-    smart_run()
+    main_workflow()
