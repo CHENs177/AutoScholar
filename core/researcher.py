@@ -45,15 +45,16 @@ def generate_dual_reports(data, img_results, save_path):
     res = data.get('key_results', {})
     crit = data.get('critical_analysis', {})
 
-    # 标题
+    # 标题渲染
     title_text = clean_text(bib.get('title', 'Unknown Title'))
     h = doc.add_heading('', 0)
     set_font(h.add_run(title_text), size=16, is_bold=True)
     h.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # 定义各个板块的读取映射
+    # 内容板块
     sections = [
         ('1. 基础元数据', [
+            f"• 类型：{data.get('type', '研究')}",
             f"• 作者与年份：{bib.get('authors_year', '未提取')}",
             f"• 来源：{bib.get('source', '未提取')}",
             f"• 关键词：{', '.join(bib.get('keywords', [])) if bib.get('keywords') else '未提取'}"

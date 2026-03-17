@@ -12,7 +12,7 @@ CACHE_DIR.mkdir(exist_ok=True)
 def get_text_hash(text):
     return hashlib.md5(text.encode('utf-8')).hexdigest()
 
-def get_semantic_chunks(text, chunk_size=4000, overlap=800):
+def get_semantic_chunks(text, chunk_size=5000, overlap=400):
     chunks = []
     start = 0
     while start < len(text):
@@ -30,7 +30,7 @@ async def analyze_chunk(chunk_text, idx, total, semaphore):
                 return json.load(f)['result']
         except: pass
     async with semaphore:
-        prompt = f"你是一名资深的 SNN 审稿人。请提取该片段的技术细节，将英文翻译成中文，翻译要求信雅达，部分：\n{chunk_text}"
+        prompt = f"你是一名资深的神经形态计算审稿人。请提取该片段的技术细节，部分关键术语可以保留英文原词：\n{chunk_text}"
         try:
             response = await client.chat.completions.create(
                 model="gpt-4o",
@@ -47,22 +47,22 @@ async def reduce_synthesis(summaries, outline_text):
     combined_context = "\n\n".join(summaries)
     title_focus = "\n\n".join(summaries[:2])
 
-    prompt = f"""你是一名资深的 SNN 专家。请根据素材撰写学术总结。
+    prompt = f"""你是一名资深的神经形态计算专家。请根据素材撰写一份详细的学术总结。
 【重要提示】：每一篇论文都是独立的，请务必从以下“标题素材”中提取本文真实标题。
 
 【标题素材】: {title_focus}
 【全篇精华素材】: {combined_context}
-【提纲参考】: {outline_text}
 
-任务要求：请严格按照以下 JSON 格式返回，【键名】必须完全一致：
+任务要求：请严格按照以下 JSON 格式返回，确保内容专业且不包含 Markdown 标记：
 {{
   "bibliographic_info": {{
-    "title": "提取真实独立标题",
+    "title": "在此处填入本文真实独立标题",
     "authors_year": "作者, 年份",
     "source": "期刊/会议名",
     "keywords": ["关键词1", "关键词2"]
   }},
-  "one_sentence_summary": "一句话总结",
+  "type": "综述/研究",
+  "one_sentence_summary": "一句话深度概括",
   "background_motivation": {{
     "research_gap": "前人研究遗留的问题",
     "research_question": "本文解决的核心问题",
@@ -75,22 +75,21 @@ async def reduce_synthesis(summaries, outline_text):
   "key_results": {{
     "core_conclusion": "主要发现",
     "data_table": "Markdown格式性能对比表",
-    "interpretation": "深度解读"
+    "interpretation": "深度数据解读"
   }},
   "critical_analysis": {{
     "innovation": "创新性评估",
     "reliability": "可靠性评估",
     "relevance_to_snn_codesign": "对协同设计的启发"
-  }},
-  "classification": {{
-    "section": "提纲中的编号，例如 2.1.1"
   }}
 }}
 """
     response = await client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": "你是一个极其严谨的学术助理，严格输出 JSON 且键名对齐。"},
-                  {"role": "user", "content": prompt}],
+        messages=[
+            {"role": "system", "content": "你是一个极其严谨的学术助理，严格输出 JSON 格式。"},
+            {"role": "user", "content": prompt}
+        ],
         temperature=0.0,
         response_format={"type": "json_object"}
     )
